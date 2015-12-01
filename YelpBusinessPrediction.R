@@ -168,3 +168,86 @@ write.csv(businessResturantsInUSACleanedColumns, file = "LatestCleaned.csv")
 str(businessResturantsInUSACleanedColumns)
 
 
+
+businesses_us_imputed_clean <- read.csv(file.choose())
+
+businesses.only.categorical.columns <- businesses_us_imputed_clean[ , !names(businesses_us_imputed_clean) %in% c("business_id","full_address","name","longitude","latitude","type","state","categories.0","categories.1","open","city","Category","zipcode","success","X")]
+
+businesses.only.categorical.columns$attributes.Price.Range.f <- factor(businesses.only.categorical.columns$attributes.Price.Range)
+
+train = sample(1:nrow(businesses.only.categorical.columns),nrow(businesses.only.categorical.columns)/2)
+
+test = -train
+
+training_data = businesses.only.categorical.columns[train,]
+
+testing_data = businesses.only.categorical.columns[test,]
+
+linear_model1 = lm(businesses.only.categorical.columns$stars ~ .,data = businesses.only.categorical.columns)
+
+liner.model = lm(training_data$stars ~ ., data = training_data)
+summary(linear_model1)
+abline(linear_model1)
+
+
+
+a = summary(linear_model1)$r.squared
+b = summary(linear_model1)$r.squared
+c = summary(linear_model1)$r.squared
+d = summary(linear_model1)$r.squared
+e = summary(linear_model1)$r.squared
+
+Rsquare = (a+b+c+d+e)/5
+
+tapply(a,b,c,d,e, mean)
+
+predict_linear_model = predict.lm(liner.model,testing_data)
+summary(predict_linear_model)
+
+install.packages("DAAG")
+install.packages("lattice")
+library(lattice)
+library(DAAG)
+cv.lm(businesses.only.categorical.columns, linear_model1)$delta[1] # 10 fold cross-validation
+
+require(caret)
+flds <- createFolds(businesses.only.categorical.columns, k = 10, list = TRUE, returnTrain = FALSE)
+names(flds)[1] <- "train"
+summary(train)
+summary(flds)
+str(flds[1])
+summary(businesses.only.categorical.columns[flds$train])
+linear_model2 = lm(businesses.only.categorical.columns[flds$train]$stars ~ .,data = businesses.only.categorical.columns[flds$train])
+
+library(caret)
+data(GermanCredit)
+Train <- createDataPartition(businesses.only.categorical.columns$Class, p=0.6, list=FALSE)
+
+
+
+library(mlbench)
+folds <- createFolds(businesses.only.categorical.columns)
+str(folds)
+split_up <- lapply(folds, function(ind, dat) dat[ind,], dat = businesses.only.categorical.columns)
+dim(businesses.only.categorical.columns)
+unlist(lapply(split_up, nrow))
+
+
+mydata <- data.frame(ymat, xmat)
+fit <- lm(ymat ~ ., data=mydata)
+library(DAAG)
+cv.lm(businesses.only.categorical.columns, linear_model1, m=10)
+
+actual <- testing_data$stars
+rsq <- 1 - (sum(actual - predict_linear_model)^2) / (sum(actual - mean(actual))^2)
+rsq <- 1-sum((actual-predict_linear_model)^2)/sum((actual-mean(actual))^2)
+summary(rsq)
+
+summary(businesses.only.categorical.columns$stars)
+summary(linear_model1)
+prediction_model = predict.lm(linear_model1,training_data)
+summary(prediction_model)
+summary(prediction_model)
+plot(prediction_model)
+#1- in this the predicted value of stars is on the x axis and fitted value, the error rate are on the y axis
+#the red line or the error rate is almost flat here which shows linearity assumption is met.
