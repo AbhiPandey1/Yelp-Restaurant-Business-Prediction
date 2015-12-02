@@ -251,3 +251,105 @@ summary(prediction_model)
 plot(prediction_model)
 #1- in this the predicted value of stars is on the x axis and fitted value, the error rate are on the y axis
 #the red line or the error rate is almost flat here which shows linearity assumption is met.
+
+
+businesses_us_cleaned <- read.csv(file.choose())
+
+library(mice)
+attach(businesses_us_cleaned)
+head(businesses_us_cleaned)
+set.seed(2)
+
+#business_csv3 = businesses_us_cleaned[ , names(businesses_us_cleaned) %in% c("city","business_id","categories.0","categories.1", "stars", "review_count")]
+business_csv3 = businesses_us_cleaned[ , names(businesses_us_cleaned) %in% c("city","business_id","attributes.Price.Range", "stars", "review_count")]
+high_rating = ifelse(business_csv3$stars >= 3.5, "YES", "NO")
+
+#with na
+businesses_us_cleaned[businesses_us_cleaned==""] <- NA
+
+#remove cols that have NAs more than or equal to 3600
+businesses.with.less.na <- businesses_us_cleaned[, colSums(is.na(businesses_us_cleaned)) < 3600]
+
+businesses_us_imputed_clean <- read.csv(file.choose())
+
+businesses.only.categorical.columns <- businesses_us_imputed_clean[ , !names(businesses_us_imputed_clean) %in% c("business_id","full_address","name","longitude","latitude","type","state","categories.0","categories.1","open","city","Category","zipcode","success","X")]
+businesses.only.categorical.columns$attributes.Price.Range.f <- factor(businesses.only.categorical.columns$attributes.Price.Range)
+
+which(colnames(businesses.only.categorical.columns)=="attributes.Price.Range")
+
+#remove price range continuous
+businesses.only.categorical.columns <- businesses.only.categorical.columns[,-5]
+head(businesses.only.categorical.columns)
+
+#library(mice)
+#impute <- mice(businesses.only.categorical.columns, m=1, maxit = 1, method = 'pmm', seed = 500)
+#businesses.categorical.imputed <- complete(impute,1)
+
+#train = sample(1:nrow(completedData),nrow(completedData)/2)
+#test = -train
+#training_data = businesses.categorical.imputed[train,]
+#testing_data = businesses.categorical.imputed[test,]
+
+#linear reg
+liner.model = lm(businesses.only.categorical.columns$stars ~ ., data = businesses.only.categorical.columns)
+summary(liner.model)
+
+train = sample(1:nrow(businesses.only.categorical.columns),nrow(businesses.only.categorical.columns)/2)
+test = -train
+training_data = businesses.only.categorical.columns[train,]
+testing_data = businesses.only.categorical.columns[test,]
+
+liner.model = lm(training_data$stars ~ ., data = training_data)
+summary(liner.model)
+
+predict_linear_model = predict.lm(liner.model,testing_data)
+summary(predict_linear_model)
+points(predict_linear_model, testing_data)
+
+#logistic reg
+success = ifelse(businesses.only.categorical.columns$stars >= 3.5, 1, 0)
+businesses.only.categorical.columns[,"success"] <- success
+
+businesses.only.categorical.no.stars <- businesses.only.categorical.columns[ , !names(businesses.only.categorical.columns) %in% c("stars")]
+businesses.only.categorical.no.stars$success <- factor(businesses.only.categorical.no.stars$success)
+
+business_model_sample = glm(businesses.only.categorical.no.stars$success ~ ., data = businesses.only.categorical.no.stars, family = binomial)
+summary(business_model_sample)
+
+#impute
+#impute <- mice(businesses.with.less.na, m=1, maxit = 1, method = 'pmm', seed = 500)
+#businesses.imputed <- complete(impute,1)
+
+#attach variable to dataset 
+rest.success <- data.frame(business_csv3, high_rating)
+
+rest.success[rest.success==""] <- NA
+
+one.tenth = sample(1:nrow(rest.success),nrow(rest.success)/200)
+
+one.tenth.data = rest.success[one.tenth,]
+temp.one.tenth <- mice(rest.success, m=1, maxit = 1, method = 'pmm', seed = 2)
+imputedData <- complete(temp.one.tenth,1)
+View(imputedData)
+
+#rest.success.imputed <- rfImpute(high_rating ~rest.success$categories.1, rest.success)
+library(mice)
+tempdata <- mice(rest.success, m=5, maxit = 2, method = 'pmm', seed = 500)
+completedData <- complete(tempdata,1)
+head(completedData)
+??mice
+
+attach(completedData)
+
+train = sample(1:nrow(completedData),nrow(completedData)/2)
+test = -train
+training_data = completedData[train,]
+testing_data = completedData[test,]
+
+high_test = high_rating[test]
+
+business_model_sample = glm(high_rating ~ stars, 
+                            data = training_data, family = binomial)
+model_pred_probs = predict(business_model_sample, testing_data, type = "response")
+
+
